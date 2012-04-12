@@ -132,7 +132,77 @@ def neighbours(x, y, width, height):
 
 #----------------the maze thing-----------------------------------------------------------------
 
+# ------------------------------------------------
+#
+# Window class:
+#   application view
+#
 
+class Window:
+    
+    # --------
+    # init:
+    #   creates window on screen
+    
+    def __init__(self, width = 500, height = 500, title = ""):
+        self.top = Tk()
+        self.canvas = Canvas(self.top, bg="white", height=height, width=width)
+        self.canvas.pack(fill=BOTH, expand=1)
+        self.top.wm_attributes("-topmost", 1)
+        self.top.resizable(FALSE,FALSE)
+        #self.place_to_center()
+        self.top.title(title)
+
+    # --------
+    # place_to_center:
+    #   places window to the center of the screen
+    
+    def place_to_center(self):
+        ws = self.top.winfo_screenwidth()
+        hs = self.top.winfo_screenheight()
+        self.top.update_idletasks()
+        w=self.top.winfo_reqwidth()
+        h=self.top.winfo_reqheight()
+        x=ws/2-w/2 
+        y=hs/2-h/2
+        self.top.geometry('%dx%d+%d+%d' % (w, h, x, y))
+
+# ------------------------------------------------
+#
+# Utils2D class:
+#   utilities for 2D calculations and transformations
+#
+
+class Utils2D:
+    
+    # --------
+    # rotate:
+    #   returns point rotated around base_point for given angle
+    
+    @staticmethod
+    def rotate(point, base_point, angle):
+        x = point[0]
+        y = point[1]
+        # translate base point to 0, 0
+        p = (x-base_point[0], y-base_point[1])
+        # rotate around origin:
+        x = p[0]*cos(angle) - p[1]*sin(angle)
+        y = p[0]*sin(angle) + p[1]*cos(angle)
+        # translate back to base point
+        p = (x + base_point[0], y + base_point[1])
+        return p
+    
+    # --------
+    # get_angle:
+    #   returns orientation of the vector defined by from_point and to_point 
+
+    @staticmethod
+    def get_angle(from_point, to_point):
+        from_x = from_point[0]
+        from_y = from_point[1]
+        to_x = to_point[0]
+        to_y = to_point[1]
+        return atan2(to_y-from_y,to_x-from_x)
 
 # ------------------------------------------------
 #
@@ -425,7 +495,8 @@ class particles:
         self.data = p3
 
 
-# ------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------------------- Robot
 #
 # Robot class:
 #
@@ -640,7 +711,8 @@ class Robot:
     def __repr__(self):
         return '[x=%.5f y=%.5f orient=%.5f]'  % (self.x, self.y, self.orientation)
 
-# ------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------------------- World
 #
 # World class:
 #   application model
@@ -966,81 +1038,11 @@ class World:
             print p
             self.set_pid_parameters(p[0], p[1], p[2])
 
-# ------------------------------------------------
-#
-# Window class:
-#   application view
-#
 
-class Window:
     
-    # --------
-    # init:
-    #   creates window on screen
-    
-    def __init__(self, width = 500, height = 500, title = ""):
-        self.top = Tk()
-        self.canvas = Canvas(self.top, bg="white", height=height, width=width)
-        self.canvas.pack(fill=BOTH, expand=1)
-        self.top.wm_attributes("-topmost", 1)
-        self.top.resizable(FALSE,FALSE)
-        #self.place_to_center()
-        self.top.title(title)
-
-    # --------
-    # place_to_center:
-    #   places window to the center of the screen
-    
-    def place_to_center(self):
-        ws = self.top.winfo_screenwidth()
-        hs = self.top.winfo_screenheight()
-        self.top.update_idletasks()
-        w=self.top.winfo_reqwidth()
-        h=self.top.winfo_reqheight()
-        x=ws/2-w/2 
-        y=hs/2-h/2
-        self.top.geometry('%dx%d+%d+%d' % (w, h, x, y))
-
-# ------------------------------------------------
-#
-# Utils2D class:
-#   utilities for 2D calculations and transformations
-#
-
-class Utils2D:
-    
-    # --------
-    # rotate:
-    #   returns point rotated around base_point for given angle
-    
-    @staticmethod
-    def rotate(point, base_point, angle):
-        x = point[0]
-        y = point[1]
-        # translate base point to 0, 0
-        p = (x-base_point[0], y-base_point[1])
-        # rotate around origin:
-        x = p[0]*cos(angle) - p[1]*sin(angle)
-        y = p[0]*sin(angle) + p[1]*cos(angle)
-        # translate back to base point
-        p = (x + base_point[0], y + base_point[1])
-        return p
-    
-    # --------
-    # get_angle:
-    #   returns orientation of the vector defined by from_point and to_point 
-
-    @staticmethod
-    def get_angle(from_point, to_point):
-        from_x = from_point[0]
-        from_y = from_point[1]
-        to_x = to_point[0]
-        to_y = to_point[1]
-        return atan2(to_y-from_y,to_x-from_x)
-    
-# ------------------------------------------------
-#
-# RacetrackAnimation class:
+# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------------Car animation
+# CarAnimation class:
 #   application controller
 #
 
