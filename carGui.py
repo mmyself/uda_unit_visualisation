@@ -1,4 +1,8 @@
 # ==============================================================================
+# google like car animation
+# by mmyself    janjan2211@googlemail.com
+#
+# thanks to djordje for the inital code
 # ANIMATED RACETRACK CONTROL
 # djordje.trifunovic@gmail.com, March 2012
 #
@@ -129,6 +133,38 @@ def neighbours(x, y, width, height):
     random.shuffle(n)
     return iter(n)
 
+
+def make_random_grid(width, height):
+    grid = [[0 for row in range(height)] for col in range(width)]
+    for j in range(height):
+        grid[j][0] = 1
+        grid[j][height - 1] = 1
+    
+
+    max_wall_size = round(width / 1.5)
+    num_walls = round(width / 1.5)
+    print("max_wall_size, num_walls: ", max_wall_size, num_walls)
+    for i in range(num_walls):
+        s = random.randint(1, max_wall_size) # size, length of the wall
+        o = random.randint(0,1)              # orientation 0 = horizontal, 1 = vertical
+        f = [random.randint(2, width - 2), random.randint(2, width - 2)]    # x,y position of the first block of the wall
+        print "s,o,f: " , s, o, f
+        if o == 0:
+            for j in range(s):
+                x = f[0] + j
+                #print "x: ", x
+                if x < (width - 2):
+                    grid[f[1]][x] = 1
+        else:
+            for j in range(s):
+                y = f[0] + j
+                #print "y: ", y
+                if y < (height - 1):
+                    grid[y][f[0]] = 1
+    grid[1][0] = 0
+    grid[height - 2][height - 1] = 0
+    #print("grid after: ", grid)
+    return grid
 
 #----------------the maze thing-----------------------------------------------------------------
 
@@ -402,15 +438,16 @@ class particles:
     #
 
     def __init__(self, x, y, theta, 
-                 steering_noise, distance_noise, measurement_noise, N = 100):
+                 steering_noise, distance_noise, measurement_noise, rlength, N = 100):
         self.N = N
         self.steering_noise    = steering_noise
         self.distance_noise    = distance_noise
         self.measurement_noise = measurement_noise
+        self.rlength = rlength
         
         self.data = []
         for i in range(self.N):
-            r = Robot()
+            r = Robot(self.rlength)
             r.set(x, y, theta)
             r.set_noise(steering_noise, distance_noise, measurement_noise)
             self.data.append(r)
@@ -564,6 +601,7 @@ class Robot:
         result.width_margin = self.width_margin
         result.color = self.color
         result.wheel_color = self.wheel_color
+        result.measurement_range = self.measurement_range
         return result
     
     # --------
@@ -630,7 +668,7 @@ class Robot:
         # apply drift
         steering += self.steering_drift
 
-        res = Robot()
+        res = self.copy()
         # execute motion:
         turn = tan(steering) * distance / self.length
         #print('turn: ', turn)
@@ -727,11 +765,39 @@ class World:
     def __init__(self, radius = 25.0, speed = 0.1, d_t = 1.0,
                  tau_p = 2.0, tau_d = 6.0, tau_i = 0.0,
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
-                 robot_color = "red", wheel_color = "black"):
+                 robot_color = "red", wheel_color = "black", mazesize = 10, draw_landmark = True):
+
+
+        ### maze init and spath stuff
+        self.mazesize = mazesize
+        self.grid = []
+        self.block_size = 1
+        self.landmarks = []
+        self.draw_landmark = draw_landmark
+        self.goal = []
+        
+        
+        self.init_grid()
+        self.init = [0,0]
+        while self.grid[self.init[0]][self.init[1]] != 0:
+            print "self.init: " ,self.init
+            print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
+            self.init = [random.randint(1, self.mazesize),random.randint(1, self.mazesize)]
+        
+        #self.goal_x = 0
+        #self.goal_y = 0
+        self.spath = []
+        self.spath_index = 0
+        self.sensed_landmarks = []
+
+
+
         self.radius = radius
         self.speed = speed
         self.d_t = d_t # time interval between steps
-        self.robot = Robot(color = robot_color, wheel_color = wheel_color)
+        self.robot_length = int(round(self.block_size / 3))
+        self.robot = Robot(length = self.robot_length, color = robot_color, wheel_color = wheel_color)
+        
         # PID parameters
         self.tau_p = tau_p # proportional CTE factor
         self.tau_d = tau_d # differential CTE factor
@@ -748,19 +814,7 @@ class World:
         self.sum_cte = 0.0  # sum of all crosstrack errors so far (needed for calculation of integral CTE in PID)
 
 
-        ### maze init and spath stuff
-        self.mazesize = 10
-        self.grid = []
-        self.block_size = 1
-        self.landmarks = []
-        self.goal = []
-        self.init_maze()
-        self.init = [1, 0]
-        #self.goal_x = 0
-        #self.goal_y = 0
-        self.spath = []
-        self.spath_index = 0
-        self.sensed_landmarks = []
+        
         
 
     # --------
@@ -777,8 +831,9 @@ class World:
     #   resets robot without recalculating PID parameters
     
     def reset_robot(self):
-        #self.last_cte = self.cte()
-        #self.sum_cte = 0.0
+        self.last_cte = 0.0
+        self.sum_cte = 0.0
+        self.spath_index = 0
         return
         
     # --------
@@ -873,7 +928,7 @@ class World:
     # init_maze:
     #   init a random maze
 
-    def init_maze(self):
+    def init_grid(self):
         ### make a more or less random grid
         ###
         mazesize = self.mazesize
@@ -881,15 +936,22 @@ class World:
         self.block_size = (1000 / mazesize)
         self.block_size = (1000 - self.block_size) / mazesize + 1
         
-        for m in maze(mazesize,mazesize, False):
-            pass
-        self.grid = m.tolist()
+        if True:
+            for m in maze(mazesize,mazesize, False):
+                pass
+            self.grid = m.tolist()
+        else:
+            self.grid = make_random_grid(mazesize,mazesize)
+
+
+
         self.goal = ([len(self.grid)-2, len(self.grid[0])-1])
         #self.goal = len(self.grid)-2
         #self.goal = len(self.grid[0])-1
         #self.goal = [4,4]
         #print("self.goal_x: ", self.goal_x)
         #print("self.goal_y: ", self.goal_y)
+
         self.landmarks = self.list_of_landmarks()
         #print ("landmarks: ", self.landmarks)
 
@@ -1058,7 +1120,8 @@ class CarAnimation:
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
                  draw_trail = False, trail_length = 200, trail_color="magenta",
                  tau_p = 4.0, tau_d = 15.0, tau_i = 0.0,
-                 path_color="blue", robot_color="red", wheel_color="black"):
+                 path_color="blue", robot_color="red", wheel_color="black",
+                 mazesize = 10, draw_landmark = True):
         # win_width, win_height - window dimensions in screen coordinates
         
         self.world = World(radius,
@@ -1066,7 +1129,7 @@ class CarAnimation:
                            twiddle_skip_iterations = twiddle_skip_iterations,
                            twiddle_iterations = twiddle_iterations,
                            robot_color = robot_color, wheel_color = wheel_color,
-                           tau_p = tau_p, tau_d = tau_d, tau_i = tau_i)
+                           tau_p = tau_p, tau_d = tau_d, tau_i = tau_i, mazesize = mazesize, draw_landmark = draw_landmark)
 
         # should the trail be kept and drawn?
         self.draw_trail = draw_trail
@@ -1303,7 +1366,16 @@ class CarAnimation:
     #   stops animation and relocates robot to the click location
 
     def mousePressed(self, event):
-        
+        world = self.world
+        world.goal = [int(round(event.y / world.block_size)), int(round(event.x / world.block_size))]
+        world.init = [int((world.robot.y / world.block_size)), int((world.robot.x / world.block_size))]
+        #print "world init: ", world.init
+        #robot_x = self.world.init[1] * self.world.block_size  + (self.world.block_size / 2)
+        #robot_y = self.world.init[0] * self.world.block_size  + (self.world.block_size / 2)
+        #print self.world.spath
+        #robot_x = self.world.spath[0][0]
+        #robot_y = self.world.spath[0][1]
+        #world.robot.set(robot_x , robot_y, pi/2.0)
         if self.running:
             self.running = False
             self.window.top.after_cancel(self.iterate_id)
@@ -1329,7 +1401,7 @@ class CarAnimation:
     #   mouse dragg event handler;
     #   rotates robot per mouse position
     
-    #def mouseDragged(self, event):
+    def mouseDragged(self, event):
     #    if self.dragging:
     #        point = self.to_world((event.x, event.y))
     #        new_x = point[0]
@@ -1340,6 +1412,7 @@ class CarAnimation:
     #        robot = self.world.robot
     #        robot.set(robot.x, robot.y, new_orientation)
     #        self.redraw()
+        return
         
     # --------
     # mouseReleased:
@@ -1399,7 +1472,8 @@ class CarAnimation:
         self.draw_maze()
         self.draw_spath()
         self.draw_robot()
-        self.draw_landmarks()
+        if self.world.draw_landmark:
+            self.draw_landmarks()
         self.draw_sensed_landmarks()
 
     # --------
@@ -1413,16 +1487,17 @@ class CarAnimation:
         
         top = self.window.top
         robot = self.world.robot
-        robot_x = self.world.block_size / 2
-        robot_y = self.world.block_size  + (self.world.block_size / 2)
-        
+        #robot_x = self.world.block_size / 2
+        #robot_y = self.world.block_size  + (self.world.block_size / 2)
+        robot_x = self.world.init[1] * self.world.block_size  + (self.world.block_size / 2)
+        robot_y = self.world.init[0] * self.world.block_size  + (self.world.block_size / 2)
         #print("robot_x, robot_y: ", robot_x, robot_y)
         #robot_x = 100
         #robot_y = 100
         robot.set(robot_x, robot_y, robot_orientation)
         #print("robot.steering_noise, robot.distance_noise, robot.measurement_noise: ", robot.steering_noise, robot.distance_noise, robot.measurement_noise)
         self.world.pfilter = particles(robot_x, robot_y, robot_orientation,
-                           robot.steering_noise, robot.distance_noise, robot.measurement_noise)
+                           robot.steering_noise, robot.distance_noise, robot.measurement_noise, robot.length)
         
         self.world.speed = speed
         top.bind('<Key-Escape>',lambda e: e.widget.destroy())
@@ -1442,13 +1517,5 @@ class CarAnimation:
 #   application entry point
 #
 
-#animation = RacetrackAnimation(radius = 50, tau_p = 10.0, tau_d = 15.0, tau_i = 0.0)
-animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True)
-#animation = RacetrackAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, zoom_out = 2)
-#animation = RacetrackAnimation(radius = 50, twiddle = True, draw_trail = True)
-#animation = RacetrackAnimation(radius = 50, twiddle = True, twiddle_skip_iterations = 20, twiddle_iterations = 400, draw_trail = True, zoom_out = 2)
-#animation = RacetrackAnimation(radius = 50, twiddle = True, twiddle_skip_iterations = 20, twiddle_iterations = 400, draw_trail = True)
+animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 200, draw_landmark = False)
 animation.run(robot_x = 0.0, robot_orientation = 0)
-#animation.run(robot_x = animation.world.radius,
-#              robot_y = 2.2 * animation.world.radius,
-#              robot_orientation = 0.0)
