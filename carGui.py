@@ -1518,6 +1518,7 @@ class CarAnimation:
 # main:
 #   application entry point
 #
+################################################################# 
 
 animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 200, draw_landmark = False)
 animation.run(robot_x = 0.0, robot_orientation = 0)
