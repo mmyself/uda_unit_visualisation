@@ -767,7 +767,7 @@ class World:
     def __init__(self, radius = 25.0, speed = 0.1, d_t = 1.0,
                  tau_p = 2.0, tau_d = 6.0, tau_i = 0.0,
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
-                 robot_color = "red", wheel_color = "black", mazesize = 10, draw_landmark = True):
+                 robot_color = "red", wheel_color = "black", mazesize = 10, draw_landmark = True, draw_sensed_landmark = True):
 
 
         ### maze init and spath stuff
@@ -776,6 +776,7 @@ class World:
         self.block_size = 1
         self.landmarks = []
         self.draw_landmark = draw_landmark
+        self.draw_sensed_landmark = draw_sensed_landmark
         self.goal = []
         
         
@@ -1123,7 +1124,7 @@ class CarAnimation:
                  draw_trail = False, trail_length = 200, trail_color="magenta",
                  tau_p = 4.0, tau_d = 15.0, tau_i = 0.0,
                  path_color="blue", robot_color="red", wheel_color="black",
-                 mazesize = 10, draw_landmark = True):
+                 mazesize = 10, draw_landmark = True, draw_sensed_landmark = True):
         # win_width, win_height - window dimensions in screen coordinates
         
         self.world = World(radius,
@@ -1131,7 +1132,7 @@ class CarAnimation:
                            twiddle_skip_iterations = twiddle_skip_iterations,
                            twiddle_iterations = twiddle_iterations,
                            robot_color = robot_color, wheel_color = wheel_color,
-                           tau_p = tau_p, tau_d = tau_d, tau_i = tau_i, mazesize = mazesize, draw_landmark = draw_landmark)
+                           tau_p = tau_p, tau_d = tau_d, tau_i = tau_i, mazesize = mazesize, draw_landmark = draw_landmark, draw_sensed_landmark = draw_sensed_landmark)
 
         # should the trail be kept and drawn?
         self.draw_trail = draw_trail
@@ -1476,7 +1477,8 @@ class CarAnimation:
         self.draw_robot()
         if self.world.draw_landmark:
             self.draw_landmarks()
-        self.draw_sensed_landmarks()
+        if self.world.draw_sensed_landmark:
+            self.draw_sensed_landmarks()
 
     # --------
     # run:
@@ -1520,5 +1522,25 @@ class CarAnimation:
 #
 ################################################################# 
 
-animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 200, draw_landmark = False)
+animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 20, draw_landmark = False, draw_sensed_landmark = True)
 animation.run(robot_x = 0.0, robot_orientation = 0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
