@@ -240,7 +240,8 @@ class Utils2D:
         to_y = to_point[1]
         return atan2(to_y-from_y,to_x-from_x)
 
-# ------------------------------------------------
+#########################################################################################################################################
+# ---------------------------------------------------------------------------------------------------------------------------- Plan
 #
 # Plan class:
 #
@@ -317,7 +318,8 @@ class plan:
         resign = False # flag set if we can't find expand
         count  = 0
 
-
+        print "open: ", open
+        
         while not found and not resign:
 
             # check if we still have elements on the open list
@@ -336,9 +338,10 @@ class plan:
 
             # check if we are done
 
-            if x == self.goal[0] and y == self.goal[1]:
+            #if (x == self.goal[0] and y == self.goal[1]) or count < 20:
+            if (x == self.goal[0] and y == self.goal[1]):
                 found = True
-                # print '###### A* search successful'
+                print '###### A* search successful'
 
             else:
                 # expand winning element and add to new open list
@@ -356,11 +359,14 @@ class plan:
                             action[x2][y2] = i
 
             count += 1
+            print "open: ", open
+            #print "closed: ", closed
+            print "action: ", action
+            #print "count: ", count
+
+
 
         # extract the path
-
-
-
         invpath = []
         x = self.goal[0]
         y = self.goal[1]
@@ -1522,7 +1528,7 @@ class CarAnimation:
 #
 ################################################################# 
 
-animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 20, draw_landmark = False, draw_sensed_landmark = True)
+animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 6, draw_landmark = False, draw_sensed_landmark = True)
 animation.run(robot_x = 0.0, robot_orientation = 0)
 
 
