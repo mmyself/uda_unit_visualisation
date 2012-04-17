@@ -240,7 +240,8 @@ class Utils2D:
         to_y = to_point[1]
         return atan2(to_y-from_y,to_x-from_x)
 
-# ------------------------------------------------
+####################################################################################################################################################################################################
+# ---------------------------------------------------------------------------------------------------------------------------- Plan
 #
 # Plan class:
 #
@@ -317,13 +318,14 @@ class plan:
         resign = False # flag set if we can't find expand
         count  = 0
 
-
+        #print "open: ", open
+        
         while not found and not resign:
 
             # check if we still have elements on the open list
             if len(open) == 0:
                 resign = True
-                print '###### Search terminated without success'
+                #print '###### Search terminated without success'
                 
             else:
                 # remove node from list
@@ -336,9 +338,10 @@ class plan:
 
             # check if we are done
 
-            if x == self.goal[0] and y == self.goal[1]:
+            #if (x == self.goal[0] and y == self.goal[1]) or count < 20:
+            if (x == self.goal[0] and y == self.goal[1]):
                 found = True
-                # print '###### A* search successful'
+                #print '###### A* search successful'
 
             else:
                 # expand winning element and add to new open list
@@ -356,11 +359,14 @@ class plan:
                             action[x2][y2] = i
 
             count += 1
+            #print "open: ", open
+            #print "closed: ", closed
+            #print "action: ", action
+            #print "count: ", count
+
+
 
         # extract the path
-
-
-
         invpath = []
         x = self.goal[0]
         y = self.goal[1]
@@ -531,7 +537,7 @@ class particles:
             p3.append(self.data[index])
         self.data = p3
 
-#########################################################################################################################################################
+#####################################################################################################################################################################################################
 # -------------------------------------------------------------------------------------------------------------------------------------------------------
 # ------------------------------------------------------------------------------------------------------------------------- Robot
 #
@@ -750,7 +756,7 @@ class Robot:
         return '[x=%.5f y=%.5f orient=%.5f]'  % (self.x, self.y, self.orientation)
 
 
-#############################################################################################################################################
+#####################################################################################################################################################################################################
 # --------------------------------------------------------------------------------------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------------------------------------- World
 #
@@ -767,11 +773,12 @@ class World:
     def __init__(self, radius = 25.0, speed = 0.1, d_t = 1.0,
                  tau_p = 2.0, tau_d = 6.0, tau_i = 0.0,
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
-                 robot_color = "red", wheel_color = "black", mazesize = 10, draw_landmark = True, draw_sensed_landmark = True):
+                 robot_color = "red", wheel_color = "black", mazesize = 10, divider = 1, draw_landmark = True, draw_sensed_landmark = True):
 
 
         ### maze init and spath stuff
         self.mazesize = mazesize
+        self.divider = divider
         self.grid = []
         self.block_size = 1
         self.landmarks = []
@@ -783,8 +790,8 @@ class World:
         self.init_grid()
         self.init = [0,0]
         while self.grid[self.init[0]][self.init[1]] != 0:
-            print "self.init: " ,self.init
-            print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
+            #print "self.init: " ,self.init
+            #print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
             self.init = [random.randint(1, self.mazesize),random.randint(1, self.mazesize)]
         
         #self.goal_x = 0
@@ -798,7 +805,7 @@ class World:
         self.radius = radius
         self.speed = speed
         self.d_t = d_t # time interval between steps
-        self.robot_length = int(round(self.block_size / 3))
+        self.robot_length = int(round(self.block_size / 1))
         self.robot = Robot(length = self.robot_length, color = robot_color, wheel_color = wheel_color)
         
         # PID parameters
@@ -935,9 +942,7 @@ class World:
         ### make a more or less random grid
         ###
         mazesize = self.mazesize
-        #self.block_size = 11
-        self.block_size = (1000 / mazesize)
-        self.block_size = (1000 - self.block_size) / mazesize + 1
+       
         
         if True:
             for m in maze(mazesize,mazesize, False):
@@ -946,8 +951,23 @@ class World:
         else:
             self.grid = make_random_grid(mazesize,mazesize)
 
-
-
+        ## divide the grid to make more possibilites to go
+        multiplier = 5
+        divider = self.divider
+        grid2 = [[0 for row in range(len(self.grid) * divider)] for col in range(len(self.grid[0]) * divider)]
+        for y in range(len(self.grid)):
+            for x in range(len(self.grid[0])):
+                if self.grid[y][x] != 0:
+                    for y2 in range(divider):
+                        for x2 in range(divider):
+                            y3 = (y * divider) + y2
+                            x3 = (x * divider) + x2
+                            grid2[y3][x3] = 1
+        
+        self.block_size = (1000 / mazesize) / divider
+        self.block_size = ((1000 - self.block_size) / mazesize + 1) / divider
+        #print grid2
+        self.grid = grid2
         self.goal = ([len(self.grid)-2, len(self.grid[0])-1])
         #self.goal = len(self.grid)-2
         #self.goal = len(self.grid[0])-1
@@ -1104,7 +1124,7 @@ class World:
             self.set_pid_parameters(p[0], p[1], p[2])
 
 
-#######################################################################################################################################################################    
+#####################################################################################################################################################################################################
 # ---------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------------Car animation
 # CarAnimation class:
@@ -1124,7 +1144,7 @@ class CarAnimation:
                  draw_trail = False, trail_length = 200, trail_color="magenta",
                  tau_p = 4.0, tau_d = 15.0, tau_i = 0.0,
                  path_color="blue", robot_color="red", wheel_color="black",
-                 mazesize = 10, draw_landmark = True, draw_sensed_landmark = True):
+                 mazesize = 10, divider = 1, draw_landmark = True, draw_sensed_landmark = True):
         # win_width, win_height - window dimensions in screen coordinates
         
         self.world = World(radius,
@@ -1132,7 +1152,7 @@ class CarAnimation:
                            twiddle_skip_iterations = twiddle_skip_iterations,
                            twiddle_iterations = twiddle_iterations,
                            robot_color = robot_color, wheel_color = wheel_color,
-                           tau_p = tau_p, tau_d = tau_d, tau_i = tau_i, mazesize = mazesize, draw_landmark = draw_landmark, draw_sensed_landmark = draw_sensed_landmark)
+                           tau_p = tau_p, tau_d = tau_d, tau_i = tau_i, mazesize = mazesize, divider = divider, draw_landmark = draw_landmark, draw_sensed_landmark = draw_sensed_landmark)
 
         # should the trail be kept and drawn?
         self.draw_trail = draw_trail
@@ -1486,9 +1506,6 @@ class CarAnimation:
     
     def run(self, robot_x = 0.0, robot_y = None, robot_orientation = pi/2.0, speed=2.0):
         # default argument values
-        if robot_y == None:
-            robot_y = self.world.radius
-        
         top = self.window.top
         robot = self.world.robot
         #robot_x = self.world.block_size / 2
@@ -1500,10 +1517,15 @@ class CarAnimation:
         #robot_y = 100
         robot.set(robot_x, robot_y, robot_orientation)
         #print("robot.steering_noise, robot.distance_noise, robot.measurement_noise: ", robot.steering_noise, robot.distance_noise, robot.measurement_noise)
+
         self.world.pfilter = particles(robot_x, robot_y, robot_orientation,
                            robot.steering_noise, robot.distance_noise, robot.measurement_noise, robot.length)
         
         self.world.speed = speed
+
+
+
+
         top.bind('<Key-Escape>',lambda e: e.widget.destroy())
         top.bind('<Return>',lambda e: self.start_iterations())
         top.bind('<space>',lambda e: self.toggle_pause())
@@ -1522,7 +1544,19 @@ class CarAnimation:
 #
 ################################################################# 
 
-animation = CarAnimation(radius = 50, tau_p = 2.0, tau_d = 20.0, tau_i = 0.0, draw_trail = True, mazesize = 20, draw_landmark = False, draw_sensed_landmark = True)
+# the World thing
+maze_size = 20 # the block
+maze_draw_landmark = False
+maze_draw_sensed_landmark = True
+maze_divider = 2
+
+# the PID thing
+P = 2.0
+D = 20.0
+I = 0.0
+
+# the 
+animation = CarAnimation(radius = 50, tau_p = P, tau_d = D, tau_i = I, draw_trail = True, mazesize = maze_size, draw_landmark = maze_draw_landmark, draw_sensed_landmark = maze_draw_sensed_landmark, divider = maze_divider)
 animation.run(robot_x = 0.0, robot_orientation = 0)
 
 
