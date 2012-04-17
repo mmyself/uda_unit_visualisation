@@ -240,7 +240,11 @@ class Utils2D:
         to_y = to_point[1]
         return atan2(to_y-from_y,to_x-from_x)
 
+<<<<<<< HEAD
 ####################################################################################################################################################################################################
+=======
+#########################################################################################################################################
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
 # ---------------------------------------------------------------------------------------------------------------------------- Plan
 #
 # Plan class:
@@ -318,7 +322,11 @@ class plan:
         resign = False # flag set if we can't find expand
         count  = 0
 
+<<<<<<< HEAD
         #print "open: ", open
+=======
+        print "open: ", open
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
         
         while not found and not resign:
 
@@ -341,7 +349,11 @@ class plan:
             #if (x == self.goal[0] and y == self.goal[1]) or count < 20:
             if (x == self.goal[0] and y == self.goal[1]):
                 found = True
+<<<<<<< HEAD
                 #print '###### A* search successful'
+=======
+                print '###### A* search successful'
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
 
             else:
                 # expand winning element and add to new open list
@@ -359,9 +371,15 @@ class plan:
                             action[x2][y2] = i
 
             count += 1
+<<<<<<< HEAD
             #print "open: ", open
             #print "closed: ", closed
             #print "action: ", action
+=======
+            print "open: ", open
+            #print "closed: ", closed
+            print "action: ", action
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
             #print "count: ", count
 
 
