@@ -792,7 +792,7 @@ class World:
         while self.grid[self.init[0]][self.init[1]] != 0:
             #print "self.init: " ,self.init
             #print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
-            self.init = [random.randint(1, self.mazesize),random.randint(1, self.mazesize)]
+            self.init = [random.randint(1, self.mazesize * self.divider),random.randint(1, self.mazesize * self.divider)]
         
         #self.goal_x = 0
         #self.goal_y = 0
@@ -805,7 +805,7 @@ class World:
         self.radius = radius
         self.speed = speed
         self.d_t = d_t # time interval between steps
-        self.robot_length = int(round(self.block_size / 1))
+        self.robot_length = int(round(self.block_size * 0.8))
         self.robot = Robot(length = self.robot_length, color = robot_color, wheel_color = wheel_color)
         
         # PID parameters
@@ -867,6 +867,10 @@ class World:
         old_cte = self.last_cte;
         cte = self.cte() # crosstrack error
         d_cte = cte - old_cte
+
+        #if d_cte > 0.4:
+        #    cte = old_cte
+        
         self.sum_cte += cte
         self.last_cte = cte
         # print "steer and move\n"
@@ -881,6 +885,9 @@ class World:
         #steering = 0
         #if abs(cte) > abs(old_cte):
         #    steering = steering * -1
+
+        #if abs(cte) < 0.5:
+        #    steering = 0
             
         #print ('steering: ', steering)
         self.robot.move(steering, self.speed)
@@ -902,12 +909,19 @@ class World:
         robot = self.robot
         cte = 0.0
         estimate = self.pfilter.get_position()
-        #print("estimate: " , estimate)
+
         # some basic vector calculations
         dx = spath[index+1][0] - spath[index][0]
         dy = spath[index+1][1] - spath[index][1]
-        drx = estimate[0] - spath[index][0]
-        dry = estimate[1] - spath[index][1]
+
+        # for the bicycle model
+        bdx = (robot.length * 0.75) * cos(estimate[2])
+        bdy = (robot.length * 0.75) * sin(estimate[2])
+        
+        drx = estimate[0] + bdx - spath[index][0]
+        dry = estimate[1] + bdy - spath[index][1]
+
+
         #drx = robot.x - spath[index][0]
         #dry = robot.y - spath[index][1]
         #print("spath[index][0], spath[index][1]: ", spath[index][0], spath[index][1])
@@ -917,11 +931,8 @@ class World:
 
         # u is the robot estimate projectes onto the path segment
         u = (drx * dx + dry * dy) / (dx * dx + dy * dy)
-        #print("u: ", u)
-        # the cte is the estimate projected onto the normal of the path segment
         cte = (dry * dx - drx * dy) / (dx * dx + dy * dy)
-        #print('cte: ', cte)
-
+        
 
         # pick the next path segment
         if u > 1:
@@ -1138,7 +1149,7 @@ class CarAnimation:
     #   prepares model by creating world, and view by creating window, defining mapping between world and screen coordinates, placing origin etc.
     
     def __init__(self,
-                 win_width = 1000, win_height = 1000, zoom_out = 1,
+                 win_width = 1050, win_height = 1050, zoom_out = 1,
                  radius = 25.0,
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
                  draw_trail = False, trail_length = 200, trail_color="magenta",
@@ -1504,17 +1515,15 @@ class CarAnimation:
     # run:
     #   initially positions the robot, binds keyboard/mouse controls and draws the world 
     
-    def run(self, robot_x = 0.0, robot_y = None, robot_orientation = pi/2.0, speed=2.0):
+    def run(self, robot_x = 0.0, robot_y = None, robot_orientation = pi/2.0, speed=0.5):
         # default argument values
         top = self.window.top
         robot = self.world.robot
-        #robot_x = self.world.block_size / 2
-        #robot_y = self.world.block_size  + (self.world.block_size / 2)
+
         robot_x = self.world.init[1] * self.world.block_size  + (self.world.block_size / 2)
         robot_y = self.world.init[0] * self.world.block_size  + (self.world.block_size / 2)
         #print("robot_x, robot_y: ", robot_x, robot_y)
-        #robot_x = 100
-        #robot_y = 100
+       
         robot.set(robot_x, robot_y, robot_orientation)
         #print("robot.steering_noise, robot.distance_noise, robot.measurement_noise: ", robot.steering_noise, robot.distance_noise, robot.measurement_noise)
 
@@ -1544,20 +1553,27 @@ class CarAnimation:
 #
 ################################################################# 
 
-# the World thing
-maze_size = 20 # the block
+
+# the robot
+r_step = 2
+r_steering_noise = 0.0
+r_distance_noise = 0.0
+r_measurement_noise = 0.0
+
+# the World
+maze_size = 10 # the block
 maze_draw_landmark = False
 maze_draw_sensed_landmark = True
 maze_divider = 2
 
 # the PID thing
-P = 2.0
-D = 20.0
-I = 0.0
+P = 4.0
+D = 16.0
+I = 0.001
 
 # the 
 animation = CarAnimation(radius = 50, tau_p = P, tau_d = D, tau_i = I, draw_trail = True, mazesize = maze_size, draw_landmark = maze_draw_landmark, draw_sensed_landmark = maze_draw_sensed_landmark, divider = maze_divider)
-animation.run(robot_x = 0.0, robot_orientation = 0)
+animation.run(robot_x = 0.0, robot_orientation = 0, speed = r_step)
 
 
 
