@@ -1115,15 +1115,17 @@ class World:
                             self.lines.append([p0, p1])
                         
     
+
+
     def list_of_landmarks(self):
         l = []
         grid = self.grid
         first = True
         last_row = len(grid) - 1
-        # append the start and stop landmarks
 
-        l.append([0, 1 * self.block_size])
-        l.append([0, 2 * self.block_size])
+        # append the start and stop landmarks
+        #l.append([0, 1 * self.block_size])
+        #l.append([0, 2 * self.block_size])
         
         for y in range(len(grid)):
             last_in_row = len(grid[0]) - 1
@@ -1134,33 +1136,32 @@ class World:
                         continue
 
                        
-                    if grid[y][x - 1] == 0 and grid[y - 1][x - 1] == 1:
+                    if grid[y][x - 1] == 0 and grid[y - 1][x - 1] == 1 and x != 0:
                         l.append([x * self.block_size, y * self.block_size])
                     if grid[y][x - 1] == 0 and grid[y + 1][x] == 0:
                         l.append([x * self.block_size, y * self.block_size + self.block_size])
                     if grid[y][x - 1] == 0 and grid[y - 1][x] == 0:
                         l.append([x * self.block_size, y * self.block_size])
-                    if grid[y][x - 1] == 1 and grid[y - 1][x] == 1 and x != 0:
-                        l.append([x * self.block_size, y * self.block_size])
+                    if grid[y][x - 1] == 0 and grid[y + 1][x] == 1 and grid[y + 1][x - 1] == 1 and x != 0:
+                        l.append([x * self.block_size, y * self.block_size + self.block_size])
                     
                     
 
                     if x < last_in_row:
                         if grid[y][x + 1] == 0 and grid[y - 1][x + 1] == 1:
                             l.append([x  * self.block_size + self.block_size, y * self.block_size])
-                            
                         if grid[y][x + 1] == 0 and grid[y + 1][x] == 0:
                             l.append([x * self.block_size + self.block_size, y * self.block_size + self.block_size])
                             
                         if grid[y][x + 1] == 0 and grid[y - 1][x] == 0:
                             l.append([ x * self.block_size + self.block_size, y * self.block_size])
 
-                        if grid[y][x + 1] == 1 and grid[y - 1][x] == 1:
-                            l.append([x * self.block_size + self.block_size, y * self.block_size])
+                        if grid[y][x + 1] == 0 and grid[y + 1][x] == 1 and grid[y + 1][x + 1] == 1:
+                            l.append([x * self.block_size + self.block_size, y * self.block_size + self.block_size])                        
                     
 
-        l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size])
-        l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size + self.block_size])
+        #l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size])
+        #l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size + self.block_size])
         return l
 
 
@@ -1697,10 +1698,10 @@ r_distance_noise = 0.0
 r_measurement_noise = 0.0
 
 # the World
-maze_size = 10 # the block
+maze_size = 8 # the block
 maze_draw_landmark = True
 maze_draw_sensed_landmark = True
-maze_divider = 2
+maze_divider = 1
 
 # the PID thing
 P = 4.0
