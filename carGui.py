@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ==============================================================================
 # google like car animation
 # by mmyself    janjan2211@googlemail.com
@@ -19,10 +20,35 @@
 
 from Tkinter import *
 from math import *
+from random import *
 import random
 import numpy
 from numpy.random import random_integers as rnd
 from matrix import *
+##from line import line as line
+
+
+from vec2d import *
+
+#--------------the intersection checker for  radar----------------------------------------------
+
+def lineline(A,B,C,D):
+    """ Line-line intersection algorithm,
+            returns point of intersection or None
+    """
+    # ccw from http://www.bryceboe.com/2006/10/23/line-segment-intersection-algorithm/
+    def ccw(A,B,C):
+        return (C.y-A.y)*(B.x-A.x) > (B.y-A.y)*(C.x-A.x)
+    if ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D):
+        # formula from http://local.wasp.uwa.edu.au/~pbourke/geometry/lineline2d/
+        ua =    float(((D.x-C.x)*(A.y-C.y))-((D.y-C.y)*(A.x-C.x)))/ \
+                float(((D.y-C.y)*(B.x-A.x))-((D.x-C.x)*(B.y-A.y)))
+        ub =    float(((B.x-A.x)*(A.y-C.y))-((B.y-A.y)*(A.x-C.y)))/ \
+                float(((D.y-C.y)*(B.x-A.x))-((D.x-C.x)*(B.y-A.y)))
+        return vec2d(   A.x+(ua*(B.x-A.x)), \
+                        A.y+(ua*(B.y-A.y)))
+    return None
+
 
 
 #----------------the maze thing-----------------------------------------------------------------
@@ -143,7 +169,7 @@ def make_random_grid(width, height):
 
     max_wall_size = round(width / 1.5)
     num_walls = round(width / 1.5)
-    print("max_wall_size, num_walls: ", max_wall_size, num_walls)
+    #print("max_wall_size, num_walls: ", max_wall_size, num_walls)
     for i in range(num_walls):
         s = random.randint(1, max_wall_size) # size, length of the wall
         o = random.randint(0,1)              # orientation 0 = horizontal, 1 = vertical
@@ -731,6 +757,72 @@ class Robot:
                 Z.append([i, dx, dy])
         return Z
 
+    # -------------------
+    #
+    #   radar: 
+    #
+    #
+    #
+    def radar(self,
+          theta_interval = [0, 2 * pi], delta_theta = pi / 10,
+          max_distance = 150.0, walls = [], sstd = 0.1 ,tstd = 0.001):
+
+        
+        position = [self.x, self.y]
+        #print "position: ", position
+        N = round(((theta_interval[1] - theta_interval[0]) / delta_theta) + 1)
+        """
+        position: position of the radar in the world
+        theta_interval: is the interval of angles where the measuerement is made
+        delta_theta: is the step between two angles
+        max_distance: is the maximum distance that the radar can measure
+        obstacles: is a set of lines
+        sstd: standard deviation for the measuerement, sstd = 0 means no noise in measuerement
+        tstd: standard deviation for the angle, tstd = 0 means no noise in the angle
+        noise is gaussian
+        """
+        
+        radar_data = []
+        f_p = [cos, sin]
+
+
+        lines = walls
+        for i in xrange(int(N)):
+            if tstd == 0:
+                theta = theta_interval[0] + delta_theta * i 
+            else:
+                theta = gauss(theta_interval[0] + delta_theta * i, tstd) 
+
+            radar_beam_a = vec2d(position)
+            radar_beam_b = vec2d([position[a] + max_distance * f_p[a](theta) for a in xrange(2)])
+            best_dist = 10000
+            for j in xrange(len(lines)):
+                line_a = vec2d(lines[j][0])
+                line_b = vec2d(lines[j][1])
+                point  = lineline(radar_beam_a, radar_beam_b, line_a, line_b)
+                if point is not  None:
+                    #print "point: ", j,  point
+                    tmp_dist = sqrt(sum([(point[b] - position[b]) * (point[b] - position[b]) for b in xrange(2)]))
+                    best_dist = float(min([best_dist, tmp_dist, max_distance]))
+                
+            distance = best_dist
+            if sstd == 0:
+                radar_data.append([theta, distance])
+            else:
+                radar_data.append([theta, gauss(distance, sstd)])
+
+        return radar_data
+
+    def radar2rect(self, radar_data):
+        """
+        transform the radar data from polar to rectangular
+        [angle, distance] => [x, y] 
+        """
+        rect = []
+        for i in radar_data:
+            rect.append([cos(i[0]) * i[1], sin(i[0]) * i[1]])
+        return rect
+    
 
     # --------
     # measurement_prob
@@ -781,31 +873,36 @@ class World:
         self.divider = divider
         self.grid = []
         self.block_size = 1
+        
         self.landmarks = []
+        self.sensed_landmarks = []
         self.draw_landmark = draw_landmark
         self.draw_sensed_landmark = draw_sensed_landmark
+        
+        self.grid_lines = []
+        self.lines = []
+        self.sensed_radar_data = []
+        
         self.goal = []
-        
-        
         self.init_grid()
         self.init = [0,0]
         while self.grid[self.init[0]][self.init[1]] != 0:
             #print "self.init: " ,self.init
             #print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
-            self.init = [random.randint(1, self.mazesize),random.randint(1, self.mazesize)]
+            self.init = [random.randint(1, self.mazesize * self.divider),random.randint(1, self.mazesize * self.divider)]
         
         #self.goal_x = 0
         #self.goal_y = 0
         self.spath = []
         self.spath_index = 0
-        self.sensed_landmarks = []
-
+        
+        
 
 
         self.radius = radius
         self.speed = speed
         self.d_t = d_t # time interval between steps
-        self.robot_length = int(round(self.block_size / 1))
+        self.robot_length = int(round(self.block_size * 0.8))
         self.robot = Robot(length = self.robot_length, color = robot_color, wheel_color = wheel_color)
         
         # PID parameters
@@ -867,6 +964,10 @@ class World:
         old_cte = self.last_cte;
         cte = self.cte() # crosstrack error
         d_cte = cte - old_cte
+
+        #if d_cte > 0.4:
+        #    cte = old_cte
+        
         self.sum_cte += cte
         self.last_cte = cte
         # print "steer and move\n"
@@ -881,15 +982,23 @@ class World:
         #steering = 0
         #if abs(cte) > abs(old_cte):
         #    steering = steering * -1
+
+        #if abs(cte) < 0.5:
+        #    steering = 0
             
         #print ('steering: ', steering)
         self.robot.move(steering, self.speed)
 
         self.pfilter.move(steering, self.speed)
-
+        #self.pfilter.sense(Z)
+        
         self.sensed_landmarks = self.robot.sense(self.landmarks)
         #print self.sensed_landmarks
-        #self.pfilter.sense(Z)
+        #print "self.lines: ", self.lines
+        r_r = self.robot.radar(walls = self.lines)
+        self.sensed_radar_data = self.robot.radar2rect(r_r)
+        #print "r_r: ", r_r
+        #print "self.sensed_radar_data: ", self.sensed_radar_data
 
     # --------
     # cte:
@@ -902,26 +1011,27 @@ class World:
         robot = self.robot
         cte = 0.0
         estimate = self.pfilter.get_position()
-        #print("estimate: " , estimate)
+
         # some basic vector calculations
         dx = spath[index+1][0] - spath[index][0]
         dy = spath[index+1][1] - spath[index][1]
-        drx = estimate[0] - spath[index][0]
-        dry = estimate[1] - spath[index][1]
+
+        # for the bicycle model
+        bdx = (robot.length * 0.75) * cos(estimate[2])
+        bdy = (robot.length * 0.75) * sin(estimate[2])
+        
+        drx = estimate[0] + bdx - spath[index][0]
+        dry = estimate[1] + bdy - spath[index][1]
+
+
         #drx = robot.x - spath[index][0]
         #dry = robot.y - spath[index][1]
-        #print("spath[index][0], spath[index][1]: ", spath[index][0], spath[index][1])
-        #print("spath[index+1][0], spath[index+1][1]: ", spath[index+1][0], spath[index+1][1])
-        #print("dx, dy, drx, dry: ", dx, dy, drx, dry)
 
 
         # u is the robot estimate projectes onto the path segment
         u = (drx * dx + dry * dy) / (dx * dx + dy * dy)
-        #print("u: ", u)
-        # the cte is the estimate projected onto the normal of the path segment
         cte = (dry * dx - drx * dy) / (dx * dx + dy * dy)
-        #print('cte: ', cte)
-
+        
 
         # pick the next path segment
         if u > 1:
@@ -969,25 +1079,49 @@ class World:
         #print grid2
         self.grid = grid2
         self.goal = ([len(self.grid)-2, len(self.grid[0])-1])
-        #self.goal = len(self.grid)-2
-        #self.goal = len(self.grid[0])-1
-        #self.goal = [4,4]
-        #print("self.goal_x: ", self.goal_x)
-        #print("self.goal_y: ", self.goal_y)
+
 
         self.landmarks = self.list_of_landmarks()
         #print ("landmarks: ", self.landmarks)
 
+        self.grid_lines = self.list_of_gridlines()
+        #print "lines: ", self.lines
 
+    def list_of_gridlines(self):
+        
+        grid = self.grid
+        last_row = len(grid) - 1
+        last_in_row = len(grid[0]) - 1
+
+        for y in range(len(grid)):
+            for x in range(len(grid[0])):
+                if grid[y][x] != 0:
+                    if y != 0 and y < last_row and x != 0 and x < last_in_row:  # 
+                        if grid[y - 1][x] == 0: # if the grid_cell in the north is blank
+                            p0 = [x * self.block_size, y * self.block_size]
+                            p1 = [x * self.block_size + self.block_size, y * self.block_size]
+                            self.lines.append([p0, p1])
+                        if grid[y + 1][x] == 0: # if the grid_cell in the south is blank
+                            p0 = [x * self.block_size, y * self.block_size + self.block_size]
+                            p1 = [x * self.block_size + self.block_size, y * self.block_size + self.block_size]
+                            self.lines.append([p0, p1])
+                        if grid[y][x + 1] == 0: # if the grid_cell in the east is blank
+                            p0 = [x * self.block_size + self.block_size, y * self.block_size]
+                            p1 = [x * self.block_size + self.block_size, y * self.block_size + self.block_size]
+                            self.lines.append([p0, p1])
+                        if grid[y][x - 1] == 0: # if the grid_cell in the west is blank
+                            p0 = [x * self.block_size, y * self.block_size]
+                            p1 = [x * self.block_size, y * self.block_size + self.block_size]
+                            self.lines.append([p0, p1])
+                        
+    
     def list_of_landmarks(self):
         l = []
         grid = self.grid
-        #print self.grid
         first = True
         last_row = len(grid) - 1
         # append the start and stop landmarks
-        #l.append([1 * self.block_size,0])
-        #l.append([2 * self.block_size,0])
+
         l.append([0, 1 * self.block_size])
         l.append([0, 2 * self.block_size])
         
@@ -998,42 +1132,33 @@ class World:
                     # first row, will be not evaluated
                     if y == 0:
                         continue
-                    #if y >= last_row:
-                    #    continue
+
+                       
                     if grid[y][x - 1] == 0 and grid[y - 1][x - 1] == 1:
-                        #l.append([y * self.block_size,x * self.block_size])
                         l.append([x * self.block_size, y * self.block_size])
                     if grid[y][x - 1] == 0 and grid[y + 1][x] == 0:
-                        #l.append([y * self.block_size + self.block_size,x * self.block_size])
                         l.append([x * self.block_size, y * self.block_size + self.block_size])
                     if grid[y][x - 1] == 0 and grid[y - 1][x] == 0:
-                        #l.append([y * self.block_size,x * self.block_size])
                         l.append([x * self.block_size, y * self.block_size])
                     if grid[y][x - 1] == 1 and grid[y - 1][x] == 1 and x != 0:
-                        #l.append([y * self.block_size,x * self.block_size])
                         l.append([x * self.block_size, y * self.block_size])
                     
                     
 
                     if x < last_in_row:
                         if grid[y][x + 1] == 0 and grid[y - 1][x + 1] == 1:
-                            #l.append([y * self.block_size,x  * self.block_size + self.block_size])
                             l.append([x  * self.block_size + self.block_size, y * self.block_size])
+                            
                         if grid[y][x + 1] == 0 and grid[y + 1][x] == 0:
-                            #l.append([y * self.block_size + self.block_size,x * self.block_size + self.block_size])
                             l.append([x * self.block_size + self.block_size, y * self.block_size + self.block_size])
+                            
                         if grid[y][x + 1] == 0 and grid[y - 1][x] == 0:
-                            #l.append([y * self.block_size, x * self.block_size + self.block_size])
                             l.append([ x * self.block_size + self.block_size, y * self.block_size])
 
                         if grid[y][x + 1] == 1 and grid[y - 1][x] == 1:
-                            #l.append([y * self.block_size, x * self.block_size + self.block_size])
                             l.append([x * self.block_size + self.block_size, y * self.block_size])
                     
-                        
 
-        #l.append([self.goal[0] * self.block_size,self.goal[1] * self.block_size + self.block_size])
-        #l.append([self.goal[0] * self.block_size + self.block_size,self.goal[1] * self.block_size + self.block_size])
         l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size])
         l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size + self.block_size])
         return l
@@ -1138,7 +1263,7 @@ class CarAnimation:
     #   prepares model by creating world, and view by creating window, defining mapping between world and screen coordinates, placing origin etc.
     
     def __init__(self,
-                 win_width = 1000, win_height = 1000, zoom_out = 1,
+                 win_width = 1050, win_height = 1050, zoom_out = 1,
                  radius = 25.0,
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
                  draw_trail = False, trail_length = 200, trail_color="magenta",
@@ -1229,6 +1354,14 @@ class CarAnimation:
                     new2 = [x * block_size + block_size,y * block_size + block_size]
                     canvas.create_rectangle(new[0], new[1], new2[0], new2[1], fill="blue")
                     
+
+    def draw_lines(self):
+        canvas = self.window.canvas
+        lines = self.world.lines
+        for i in range(len(lines)):
+            canvas.create_line(lines[i][0][0], lines[i][0][1],
+                                  lines[i][1][0], lines[i][1][1],
+                                   fill = "red")
     
         
     # --------
@@ -1277,6 +1410,17 @@ class CarAnimation:
             canvas.create_oval(robot_x + landmarks[i][1] - 3, robot_y + landmarks[i][2] - 3 ,robot_x + landmarks[i][1] + 3, robot_y + landmarks[i][2] + 3, width=1, outline='green', fill='green')
             #canvas.create_oval(robot_x  - 3, robot_y  - 3 ,robot_x  + 3, robot_y + 3, width=1, outline='green', fill='green')
 
+
+    def draw_sensed_radar_data(self):
+        canvas = self.window.canvas
+        sensed_radar_data = self.world.sensed_radar_data
+        robot = self.world.robot
+        robot_x = robot.x
+        robot_y = robot.y
+        #print "radar_data: ", sensed_radar_data
+        for i in range(len(sensed_radar_data)):
+            canvas.create_oval(robot_x + sensed_radar_data[i][0] - 3, robot_y + sensed_radar_data[i][1] - 3 ,robot_x + sensed_radar_data[i][0] + 3, robot_y + sensed_radar_data[i][1] + 3, width=1, outline='yellow', fill='yellow')
+        
     # --------
     # draw_path:
     #   draws path on canvas
@@ -1500,21 +1644,22 @@ class CarAnimation:
         if self.world.draw_sensed_landmark:
             self.draw_sensed_landmarks()
 
+        self.draw_sensed_radar_data()
+        self.draw_lines()
+
     # --------
     # run:
     #   initially positions the robot, binds keyboard/mouse controls and draws the world 
     
-    def run(self, robot_x = 0.0, robot_y = None, robot_orientation = pi/2.0, speed=2.0):
+    def run(self, robot_x = 0.0, robot_y = None, robot_orientation = pi/2.0, speed=0.5):
         # default argument values
         top = self.window.top
         robot = self.world.robot
-        #robot_x = self.world.block_size / 2
-        #robot_y = self.world.block_size  + (self.world.block_size / 2)
+
         robot_x = self.world.init[1] * self.world.block_size  + (self.world.block_size / 2)
         robot_y = self.world.init[0] * self.world.block_size  + (self.world.block_size / 2)
         #print("robot_x, robot_y: ", robot_x, robot_y)
-        #robot_x = 100
-        #robot_y = 100
+       
         robot.set(robot_x, robot_y, robot_orientation)
         #print("robot.steering_noise, robot.distance_noise, robot.measurement_noise: ", robot.steering_noise, robot.distance_noise, robot.measurement_noise)
 
@@ -1544,20 +1689,27 @@ class CarAnimation:
 #
 ################################################################# 
 
-# the World thing
-maze_size = 20 # the block
-maze_draw_landmark = False
+
+# the robot
+r_step = 2
+r_steering_noise = 0.0
+r_distance_noise = 0.0
+r_measurement_noise = 0.0
+
+# the World
+maze_size = 10 # the block
+maze_draw_landmark = True
 maze_draw_sensed_landmark = True
 maze_divider = 2
 
 # the PID thing
-P = 2.0
-D = 20.0
-I = 0.0
+P = 4.0
+D = 11.0
+I = 0.001
 
-# the 
+# the Animation
 animation = CarAnimation(radius = 50, tau_p = P, tau_d = D, tau_i = I, draw_trail = True, mazesize = maze_size, draw_landmark = maze_draw_landmark, draw_sensed_landmark = maze_draw_sensed_landmark, divider = maze_divider)
-animation.run(robot_x = 0.0, robot_orientation = 0)
+animation.run(robot_x = 0.0, robot_orientation = 0, speed = r_step)
 
 
 
