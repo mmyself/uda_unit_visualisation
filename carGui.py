@@ -25,9 +25,6 @@ import random
 import numpy
 from numpy.random import random_integers as rnd
 from matrix import *
-##from line import line as line
-
-
 from vec2d import *
 
 #--------------the intersection checker for  radar----------------------------------------------
@@ -768,8 +765,10 @@ class Robot:
           max_distance = 150.0, walls = [], sstd = 0.1 ,tstd = 0.001):
 
         
-        position = [self.x, self.y]
-        #print "position: ", position
+        #position = [self.x, self.y]
+        #print "position1: ", position
+        position = [self.x + (self.length * 0.75) * cos(self.orientation), self.y + (self.length * 0.75) * sin(self.orientation)]
+        #print "position2: ", position
         N = round(((theta_interval[1] - theta_interval[0]) / delta_theta) + 1)
         """
         position: position of the radar in the world
@@ -862,7 +861,7 @@ class World:
     #   creates world with track and a robot in it
     #
     
-    def __init__(self, radius = 25.0, speed = 0.1, d_t = 1.0,
+    def __init__(self, radius = 25.0, speed = 0.1, d_t = 2.0,
                  tau_p = 2.0, tau_d = 6.0, tau_i = 0.0,
                  twiddle = False, twiddle_skip_iterations = 100, twiddle_iterations = 200,
                  robot_color = "red", wheel_color = "black", mazesize = 10, divider = 1, draw_landmark = True, draw_sensed_landmark = True):
@@ -885,11 +884,11 @@ class World:
         
         self.goal = []
         self.init_grid()
-        self.init = [0,0]
-        while self.grid[self.init[0]][self.init[1]] != 0:
+        self.init = [1 * self.divider + self.divider / 2,0]
+        #while self.grid[self.init[0]][self.init[1]] != 0:
             #print "self.init: " ,self.init
             #print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
-            self.init = [random.randint(1, self.mazesize * self.divider),random.randint(1, self.mazesize * self.divider)]
+        #    self.init = [random.randint(1, self.mazesize * self.divider),random.randint(1, self.mazesize * self.divider)]
         
         #self.goal_x = 0
         #self.goal_y = 0
@@ -955,6 +954,9 @@ class World:
             self.do_twiddle()
             print "Done."
 
+    def do(self):
+        self.steer_and_move_robot()
+
     # --------
     # steer_and_move_robot:
     #   calculates the steering and moves the robot to next location
@@ -964,13 +966,9 @@ class World:
         old_cte = self.last_cte;
         cte = self.cte() # crosstrack error
         d_cte = cte - old_cte
-
-        #if d_cte > 0.4:
-        #    cte = old_cte
-        
         self.sum_cte += cte
         self.last_cte = cte
-        # print "steer and move\n"
+
         # PID = proportional, differential, integral
         # P (proportional): -tau_p * cte         - steers towards desired path, oscillates
         # D (differential): -tau_d * d_cte / d_t - eliminates oscilations
@@ -979,27 +977,17 @@ class World:
                    - self.tau_d * d_cte / d_t \
                    - self.tau_i * self.sum_cte
         
-        #steering = 0
-        #if abs(cte) > abs(old_cte):
-        #    steering = steering * -1
-
-        #if abs(cte) < 0.5:
-        #    steering = 0
-            
-        #print ('steering: ', steering)
         self.robot.move(steering, self.speed)
 
         self.pfilter.move(steering, self.speed)
         #self.pfilter.sense(Z)
         
         self.sensed_landmarks = self.robot.sense(self.landmarks)
-        #print self.sensed_landmarks
-        #print "self.lines: ", self.lines
+
         r_r = self.robot.radar(walls = self.lines)
         self.sensed_radar_data = self.robot.radar2rect(r_r)
-        #print "r_r: ", r_r
-        #print "self.sensed_radar_data: ", self.sensed_radar_data
 
+        
     # --------
     # cte:
     #   calculates crosstrack error as a difference between the correct location and the robot's current location
@@ -1036,9 +1024,6 @@ class World:
         # pick the next path segment
         if u > 1:
             self.spath_index += 1
-            #print ("self.spath_index: ", self.spath_index)
-        #else:
-        #   return cte
         
         return cte
 
@@ -1084,11 +1069,10 @@ class World:
         self.landmarks = self.list_of_landmarks()
         #print ("landmarks: ", self.landmarks)
 
-        self.grid_lines = self.list_of_gridlines()
+        self.list_of_gridlines()
         #print "lines: ", self.lines
 
     def list_of_gridlines(self):
-        
         grid = self.grid
         last_row = len(grid) - 1
         last_in_row = len(grid[0]) - 1
@@ -1123,10 +1107,6 @@ class World:
         first = True
         last_row = len(grid) - 1
 
-        # append the start and stop landmarks
-        #l.append([0, 1 * self.block_size])
-        #l.append([0, 2 * self.block_size])
-        
         for y in range(len(grid)):
             last_in_row = len(grid[0]) - 1
             for x in range(len(grid[0])):
@@ -1134,8 +1114,7 @@ class World:
                     # first row, will be not evaluated
                     if y == 0:
                         continue
-
-                       
+         
                     if grid[y][x - 1] == 0 and grid[y - 1][x - 1] == 1 and x != 0:
                         l.append([x * self.block_size, y * self.block_size])
                     if grid[y][x - 1] == 0 and grid[y + 1][x] == 0:
@@ -1144,24 +1123,17 @@ class World:
                         l.append([x * self.block_size, y * self.block_size])
                     if grid[y][x - 1] == 0 and grid[y + 1][x] == 1 and grid[y + 1][x - 1] == 1 and x != 0:
                         l.append([x * self.block_size, y * self.block_size + self.block_size])
-                    
-                    
 
                     if x < last_in_row:
                         if grid[y][x + 1] == 0 and grid[y - 1][x + 1] == 1:
                             l.append([x  * self.block_size + self.block_size, y * self.block_size])
                         if grid[y][x + 1] == 0 and grid[y + 1][x] == 0:
                             l.append([x * self.block_size + self.block_size, y * self.block_size + self.block_size])
-                            
                         if grid[y][x + 1] == 0 and grid[y - 1][x] == 0:
                             l.append([ x * self.block_size + self.block_size, y * self.block_size])
-
                         if grid[y][x + 1] == 0 and grid[y + 1][x] == 1 and grid[y + 1][x + 1] == 1:
                             l.append([x * self.block_size + self.block_size, y * self.block_size + self.block_size])                        
                     
-
-        #l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size])
-        #l.append([self.goal[1] * self.block_size + self.block_size, self.goal[0] * self.block_size + self.block_size])
         return l
 
 
@@ -1406,18 +1378,16 @@ class CarAnimation:
         robot_y = robot.y
         
         for i in range(len(landmarks)):
-            #print("x,y: ", robot_x,robot_y)
-            #print("sensed landmark: ", landmarks[i][1], landmarks[i][2])
             canvas.create_oval(robot_x + landmarks[i][1] - 3, robot_y + landmarks[i][2] - 3 ,robot_x + landmarks[i][1] + 3, robot_y + landmarks[i][2] + 3, width=1, outline='green', fill='green')
-            #canvas.create_oval(robot_x  - 3, robot_y  - 3 ,robot_x  + 3, robot_y + 3, width=1, outline='green', fill='green')
+
 
 
     def draw_sensed_radar_data(self):
         canvas = self.window.canvas
         sensed_radar_data = self.world.sensed_radar_data
         robot = self.world.robot
-        robot_x = robot.x
-        robot_y = robot.y
+        robot_x = robot.x + (robot.length * 0.75) * cos(robot.orientation)
+        robot_y = robot.y + (robot.length * 0.75) * sin(robot.orientation)
         #print "radar_data: ", sensed_radar_data
         for i in range(len(sensed_radar_data)):
             canvas.create_oval(robot_x + sensed_radar_data[i][0] - 3, robot_y + sensed_radar_data[i][1] - 3 ,robot_x + sensed_radar_data[i][0] + 3, robot_y + sensed_radar_data[i][1] + 3, width=1, outline='yellow', fill='yellow')
@@ -1600,7 +1570,7 @@ class CarAnimation:
     def iterate(self):
         self.running = True
         world = self.world
-        world.steer_and_move_robot();
+        world.do()
         self.redraw()
         self.iterate_id = self.window.top.after(50, self.iterate)
         
@@ -1648,6 +1618,8 @@ class CarAnimation:
         self.draw_sensed_radar_data()
         self.draw_lines()
 
+        
+
     # --------
     # run:
     #   initially positions the robot, binds keyboard/mouse controls and draws the world 
@@ -1668,9 +1640,6 @@ class CarAnimation:
                            robot.steering_noise, robot.distance_noise, robot.measurement_noise, robot.length)
         
         self.world.speed = speed
-
-
-
 
         top.bind('<Key-Escape>',lambda e: e.widget.destroy())
         top.bind('<Return>',lambda e: self.start_iterations())
@@ -1698,10 +1667,10 @@ r_distance_noise = 0.0
 r_measurement_noise = 0.0
 
 # the World
-maze_size = 8 # the block
+maze_size = 16 # the block
 maze_draw_landmark = True
 maze_draw_sensed_landmark = True
-maze_divider = 1
+maze_divider = 2
 
 # the PID thing
 P = 4.0
@@ -1709,7 +1678,9 @@ D = 11.0
 I = 0.001
 
 # the Animation
-animation = CarAnimation(radius = 50, tau_p = P, tau_d = D, tau_i = I, draw_trail = True, mazesize = maze_size, draw_landmark = maze_draw_landmark, draw_sensed_landmark = maze_draw_sensed_landmark, divider = maze_divider)
+animation = CarAnimation(radius = 50, tau_p = P, tau_d = D, tau_i = I,
+                         draw_trail = True, draw_landmark = maze_draw_landmark, draw_sensed_landmark = maze_draw_sensed_landmark,
+                         mazesize = maze_size, divider = maze_divider)
 animation.run(robot_x = 0.0, robot_orientation = 0, speed = r_step)
 
 
