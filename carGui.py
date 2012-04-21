@@ -263,7 +263,11 @@ class Utils2D:
         to_y = to_point[1]
         return atan2(to_y-from_y,to_x-from_x)
 
+<<<<<<< HEAD
 ####################################################################################################################################################################################################
+=======
+#########################################################################################################################################
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
 # ---------------------------------------------------------------------------------------------------------------------------- Plan
 #
 # Plan class:
@@ -341,7 +345,11 @@ class plan:
         resign = False # flag set if we can't find expand
         count  = 0
 
+<<<<<<< HEAD
         #print "open: ", open
+=======
+        print "open: ", open
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
         
         while not found and not resign:
 
@@ -364,7 +372,11 @@ class plan:
             #if (x == self.goal[0] and y == self.goal[1]) or count < 20:
             if (x == self.goal[0] and y == self.goal[1]):
                 found = True
+<<<<<<< HEAD
                 #print '###### A* search successful'
+=======
+                print '###### A* search successful'
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
 
             else:
                 # expand winning element and add to new open list
@@ -382,9 +394,15 @@ class plan:
                             action[x2][y2] = i
 
             count += 1
+<<<<<<< HEAD
             #print "open: ", open
             #print "closed: ", closed
             #print "action: ", action
+=======
+            print "open: ", open
+            #print "closed: ", closed
+            print "action: ", action
+>>>>>>> be50ffe8e6636a71c012261302ffbed2bf084c3e
             #print "count: ", count
 
 
@@ -888,7 +906,11 @@ class World:
         #while self.grid[self.init[0]][self.init[1]] != 0:
             #print "self.init: " ,self.init
             #print "self.grid[self.init[0]][self.init[1]]: " ,self.grid[self.init[0]][self.init[1]]
+<<<<<<< HEAD
         #    self.init = [random.randint(1, self.mazesize * self.divider),random.randint(1, self.mazesize * self.divider)]
+=======
+            self.init = [random.randint(1, self.mazesize * self.divider),random.randint(1, self.mazesize * self.divider)]
+>>>>>>> f5f9a6d5594f39427fd0c3e6fe2b52661efbf5b7
         
         #self.goal_x = 0
         #self.goal_y = 0
@@ -966,6 +988,10 @@ class World:
         old_cte = self.last_cte;
         cte = self.cte() # crosstrack error
         d_cte = cte - old_cte
+
+        #if d_cte > 0.4:
+        #    cte = old_cte
+        
         self.sum_cte += cte
         self.last_cte = cte
 
@@ -977,6 +1003,17 @@ class World:
                    - self.tau_d * d_cte / d_t \
                    - self.tau_i * self.sum_cte
         
+<<<<<<< HEAD
+=======
+        #steering = 0
+        #if abs(cte) > abs(old_cte):
+        #    steering = steering * -1
+
+        #if abs(cte) < 0.5:
+        #    steering = 0
+            
+        #print ('steering: ', steering)
+>>>>>>> f5f9a6d5594f39427fd0c3e6fe2b52661efbf5b7
         self.robot.move(steering, self.speed)
 
         self.pfilter.move(steering, self.speed)
@@ -1681,6 +1718,7 @@ I = 0.001
 animation = CarAnimation(radius = 50, tau_p = P, tau_d = D, tau_i = I,
                          draw_trail = True, draw_landmark = maze_draw_landmark, draw_sensed_landmark = maze_draw_sensed_landmark,
                          mazesize = maze_size, divider = maze_divider)
+
 animation.run(robot_x = 0.0, robot_orientation = 0, speed = r_step)
 
 
